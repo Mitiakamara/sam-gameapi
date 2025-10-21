@@ -1,0 +1,18 @@
+# Entorno y dependencias
+.venv/
+__pycache__/
+*.pyc
+*.pyo
+
+# Configuración privada
+.env
+*.env
+
+# Datos locales y temporales
+data/*.json
+logs/
+*.log
+
+# Archivos del sistema
+.DS_Store
+Thumbs.db
