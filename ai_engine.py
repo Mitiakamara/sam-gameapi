@@ -4,9 +4,12 @@ from openai import OpenAI
 from utils import storage
 
 # ================================================================
-# 🤖 CONFIGURACIÓN DE CLIENTE OPENAI
+# ⚙️ CONFIGURACIÓN DE MODELOS
 # ================================================================
 client = OpenAI(api_key=os.getenv("OPENAI_API_KEY"))
+
+PRIMARY_MODEL = os.getenv("PRIMARY_MODEL", "gpt-4o-mini")   # modelo base económico
+FALLBACK_MODEL = os.getenv("FALLBACK_MODEL", "gpt-5")       # modelo avanzado
 
 # ================================================================
 # 🎭 PROMPT DEL SISTEMA (S.A.M. v3 con memoria corta)
@@ -45,12 +48,10 @@ Recuerda: S.A.M. no solo describe lo que sucede, sino que **dirige una historia 
 """
 
 # ================================================================
-# 🧠 FUNCIÓN: construir contexto narrativo con memoria corta
+# 🧠 FUNCIÓN: construir contexto con memoria corta
 # ================================================================
 def build_context_with_memory(context: dict | None = None, memory_limit: int = 3) -> str:
-    """
-    Crea un texto contextual con los últimos eventos (memoria corta).
-    """
+    """Crea un texto contextual con los últimos eventos (memoria corta)."""
     memory_text = ""
     try:
         state = storage.read_json("game_state.json")
@@ -74,14 +75,13 @@ def build_context_with_memory(context: dict | None = None, memory_limit: int = 3
     return scene_text + memory_text
 
 # ================================================================
-# 🎮 FUNCIÓN PRINCIPAL: interpretación de acción o diálogo
+# 🎮 FUNCIÓN PRINCIPAL
 # ================================================================
 async def interpret_action(player: str, action: str, mode: str, context: dict | None = None) -> str:
     """
-    Envía la acción o diálogo del jugador a GPT-5 y devuelve la respuesta narrativa.
-    Incluye los últimos eventos como memoria contextual.
+    Envía la acción o diálogo del jugador a GPT y devuelve la respuesta narrativa.
+    Usa GPT-4o-mini por defecto y GPT-5 como fallback o para escenas clave.
     """
-    # Construir contexto extendido con memoria corta
     memory_context = build_context_with_memory(context)
 
     user_prompt = f"""
@@ -94,12 +94,14 @@ Acción: {action}
 Responde narrativamente como Dungeon Master, siguiendo las instrucciones del sistema.
 """
 
+    # Determinar si la escena amerita el modelo grande
+    model = PRIMARY_MODEL
+    if mode == "dialogue" or any(x in action.lower() for x in ["hablo", "negocio", "discuto", "converso", "pregunto"]):
+        model = FALLBACK_MODEL  # usar modelo más expresivo
+
     try:
-        # ============================================================
-        # 🔮 Llamada moderna a GPT-5
-        # ============================================================
         response = client.chat.completions.create(
-            model="gpt-5",
+            model=model,
             messages=[
                 {"role": "system", "content": SYSTEM_PROMPT},
                 {"role": "user", "content": user_prompt},
@@ -107,8 +109,22 @@ Responde narrativamente como Dungeon Master, siguiendo las instrucciones del sis
             temperature=0.85,
             max_completion_tokens=400,
         )
-
         return response.choices[0].message.content.strip()
 
     except Exception as e:
-        return f"S.A.M. hace una pausa incómoda... (Error interno del narrador: {e})"
+        # Intentar automáticamente con el modelo de respaldo si falla el principal
+        if model != FALLBACK_MODEL:
+            try:
+                response = client.chat.completions.create(
+                    model=FALLBACK_MODEL,
+                    messages=[
+                        {"role": "system", "content": SYSTEM_PROMPT},
+                        {"role": "user", "content": user_prompt},
+                    ],
+                    temperature=0.85,
+                    max_completion_tokens=400,
+                )
+                return response.choices[0].message.content.strip()
+            except Exception as e2:
+                return f"S.A.M. hace una pausa incómoda... (Error crítico del narrador: {e2})"
+        return f"S.A.M. se queda pensativo... (Error: {e})"
