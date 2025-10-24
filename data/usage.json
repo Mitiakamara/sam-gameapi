@@ -1,0 +1,9 @@
+{
+  "2025-10": {
+    "total_tokens": 0,
+    "models": {
+      "gpt-4o-mini": { "tokens": 0 },
+      "gpt-5": { "tokens": 0 }
+    }
+  }
+}
