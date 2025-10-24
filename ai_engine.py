@@ -1,16 +1,15 @@
 # sam-gameapi/ai_engine.py
 import os
 from openai import OpenAI
+from utils import storage
 
 # ================================================================
 # 🤖 CONFIGURACIÓN DE CLIENTE OPENAI
 # ================================================================
-# La API Key debe estar en tu entorno o variables de Render
-# Ejemplo en .env: OPENAI_API_KEY=sk-xxxxxxxxxxxxxxxxxxxxxxxxxxxx
 client = OpenAI(api_key=os.getenv("OPENAI_API_KEY"))
 
 # ================================================================
-# 🎭 PROMPT DEL SISTEMA (S.A.M. v3)
+# 🎭 PROMPT DEL SISTEMA (S.A.M. v3 con memoria corta)
 # ================================================================
 SYSTEM_PROMPT = """
 Eres S.A.M. (Storytelling AI Module), un Dungeon Master autónomo y experto en Dungeons & Dragons 5e.
@@ -46,42 +45,58 @@ Recuerda: S.A.M. no solo describe lo que sucede, sino que **dirige una historia 
 """
 
 # ================================================================
-# 🧩 FUNCIÓN PRINCIPAL
+# 🧠 FUNCIÓN: construir contexto narrativo con memoria corta
+# ================================================================
+def build_context_with_memory(context: dict | None = None, memory_limit: int = 3) -> str:
+    """
+    Crea un texto contextual con los últimos eventos (memoria corta).
+    """
+    memory_text = ""
+    try:
+        state = storage.read_json("game_state.json")
+        history = state.get("history", [])
+        if history:
+            recent = history[-memory_limit:]
+            memory_text = "\nÚltimos eventos recientes:\n"
+            for item in recent:
+                memory_text += f"- {item.get('player', '???')}: {item.get('action')}\n"
+                memory_text += f"  → {item.get('response')}\n"
+    except Exception:
+        memory_text = ""
+
+    scene_text = ""
+    if context:
+        scene_text = (
+            f"Escena actual: {context.get('scene', 'desconocida')}\n"
+            f"Descripción: {context.get('description', 'sin detalles')}\n"
+        )
+
+    return scene_text + memory_text
+
+# ================================================================
+# 🎮 FUNCIÓN PRINCIPAL: interpretación de acción o diálogo
 # ================================================================
 async def interpret_action(player: str, action: str, mode: str, context: dict | None = None) -> str:
     """
     Envía la acción o diálogo del jugador a GPT-5 y devuelve la respuesta narrativa.
-    - player: nombre del jugador
-    - action: texto libre (ej: "quiero escalar la pared")
-    - mode: 'action' o 'dialogue'
-    - context: información opcional del estado de la escena
+    Incluye los últimos eventos como memoria contextual.
     """
+    # Construir contexto extendido con memoria corta
+    memory_context = build_context_with_memory(context)
 
-    # Preparar contexto adicional
-    context_text = ""
-    if context:
-        try:
-            # Formatear el contexto de manera legible
-            scene = context.get("scene", "Escena desconocida")
-            desc = context.get("description", "Sin detalles adicionales.")
-            context_text = f"Escena actual: {scene}\nDescripción: {desc}\n"
-        except Exception:
-            context_text = ""
-
-    # Prompt de usuario con toda la información relevante
     user_prompt = f"""
 Jugador: {player}
 Tipo: {mode}
 Acción: {action}
 
-{context_text}
+{memory_context}
 
 Responde narrativamente como Dungeon Master, siguiendo las instrucciones del sistema.
 """
 
     try:
         # ============================================================
-        # 🔮 Llamada a GPT-5
+        # 🔮 Llamada moderna a GPT-5
         # ============================================================
         response = client.chat.completions.create(
             model="gpt-5",
@@ -90,10 +105,10 @@ Responde narrativamente como Dungeon Master, siguiendo las instrucciones del sis
                 {"role": "user", "content": user_prompt},
             ],
             temperature=0.85,
-            max_tokens=400,
+            max_completion_tokens=400,
         )
+
         return response.choices[0].message.content.strip()
 
     except Exception as e:
-        # Manejo seguro de errores
         return f"S.A.M. hace una pausa incómoda... (Error interno del narrador: {e})"
