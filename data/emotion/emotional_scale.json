@@ -1,0 +1,90 @@
+{
+  "version": "5.2a",
+  "description": "Escala emocional y tono narrativo adaptativo - Base conceptual del sistema S.A.M.",
+  "emotions": {
+    "neutral": {
+      "tone": "Equilibrado, descriptivo y objetivo.",
+      "vocabulary_bias": ["observa", "nota", "describe", "presencia", "movimiento", "detalle"],
+      "style": "narrador imparcial, ritmo medio, frases completas, sin carga emocional.",
+      "color_palette": ["gris claro", "beige", "blanco"]
+    },
+    "tension": {
+      "tone": "Urgente y expectante, con sensación de peligro o inminencia.",
+      "vocabulary_bias": ["latido", "crujido", "eco", "pasos", "respiración", "mirada", "golpe"],
+      "style": "frases cortas, ritmo acelerado, énfasis en el peligro o la incertidumbre.",
+      "color_palette": ["rojo oscuro", "ámbar", "negro"]
+    },
+    "fear": {
+      "tone": "Atemorizante y opresivo, enfocado en la vulnerabilidad o lo desconocido.",
+      "vocabulary_bias": ["sombra", "frío", "silencio", "sangre", "susurro", "temblor"],
+      "style": "uso de pausas, descripciones sensoriales intensas, ritmo fragmentado.",
+      "color_palette": ["gris", "azul pálido", "negro"]
+    },
+    "melancholy": {
+      "tone": "Triste y reflexivo, evocando pérdida o nostalgia.",
+      "vocabulary_bias": ["bruma", "eco", "recuerdo", "suspiro", "luz tenue", "viento"],
+      "style": "narración pausada, lenguaje poético, enfoque introspectivo.",
+      "color_palette": ["azul grisáceo", "plateado", "violeta"]
+    },
+    "hope": {
+      "tone": "Optimista y luminoso, con sensación de posibilidad y renacimiento.",
+      "vocabulary_bias": ["amanecer", "resplandor", "calidez", "voz", "horizonte", "luz"],
+      "style": "lenguaje positivo, metáforas de crecimiento y superación, ritmo fluido.",
+      "color_palette": ["dorado", "blanco", "verde claro"]
+    },
+    "epic": {
+      "tone": "Heroico, grandilocuente y lleno de propósito.",
+      "vocabulary_bias": ["trueno", "valentía", "destino", "gloria", "resplandece", "juramento"],
+      "style": "frases amplias, tono exaltado, uso de metáforas y ritmo ascendente.",
+      "color_palette": ["dorado", "rojo", "bronce"]
+    },
+    "comic": {
+      "tone": "Ligero y humorístico, con toques de ironía o absurdo.",
+      "vocabulary_bias": ["torpe", "inesperado", "caótico", "ridículo", "risa", "sorpresa"],
+      "style": "ritmo rápido, exageraciones intencionales, quiebres del tono épico.",
+      "color_palette": ["amarillo", "turquesa", "rosa claro"]
+    }
+  },
+  "scene_adaptation": {
+    "exploration": "neutral",
+    "combat": "tension",
+    "dialogue": "neutral",
+    "rest": "melancholy",
+    "revelation": "epic",
+    "discovery": "hope",
+    "defeat": "fear",
+    "victory": "epic",
+    "comic_relief": "comic"
+  },
+  "intensity_levels": {
+    "1": "Matiz sutil; apenas sugerido en adjetivos y ritmo.",
+    "2": "Presencia emocional leve, perceptible en tono y vocabulario.",
+    "3": "Tono dominante; influye en la estructura de las oraciones.",
+    "4": "Narrador afectado emocionalmente; ritmo y estilo adaptados.",
+    "5": "Tono total; atmósfera, puntuación y descripciones inmersivas."
+  },
+  "transition_rules": {
+    "positive_shift": {
+      "from": ["fear", "melancholy"],
+      "to": ["hope", "epic"],
+      "trigger": ["descubrimiento", "rescate", "curación", "reencuentro"]
+    },
+    "negative_shift": {
+      "from": ["neutral", "hope"],
+      "to": ["tension", "fear"],
+      "trigger": ["amenaza", "fracaso", "muerte", "traición"]
+    },
+    "comic_shift": {
+      "from": ["tension", "epic"],
+      "to": ["comic"],
+      "trigger": ["acción absurda", "comentario irónico", "resultado inesperado"]
+    }
+  },
+  "metadata": {
+    "author": "S.A.M. Narrative Engine",
+    "compatible_with": "Scene Manager v5.0+",
+    "language": "es-ES",
+    "created": "2025-10-24",
+    "license": "CC-BY-4.0"
+  }
+}
