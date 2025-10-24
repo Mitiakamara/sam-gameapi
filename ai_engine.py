@@ -1,15 +1,16 @@
 # sam-gameapi/ai_engine.py
 import os
+from datetime import datetime
 from openai import OpenAI
 from utils import storage
 
 # ================================================================
-# ⚙️ CONFIGURACIÓN DE MODELOS
+# ⚙️ CONFIGURACIÓN DE CLIENTE Y MODELOS
 # ================================================================
 client = OpenAI(api_key=os.getenv("OPENAI_API_KEY"))
-
-PRIMARY_MODEL = os.getenv("PRIMARY_MODEL", "gpt-4o-mini")   # modelo base económico
+PRIMARY_MODEL = os.getenv("PRIMARY_MODEL", "gpt-4o-mini")   # modelo económico
 FALLBACK_MODEL = os.getenv("FALLBACK_MODEL", "gpt-5")       # modelo avanzado
+USAGE_FILE = "usage.json"                                   # contador persistente
 
 # ================================================================
 # 🎭 PROMPT DEL SISTEMA (S.A.M. v3 con memoria corta)
@@ -48,10 +49,10 @@ Recuerda: S.A.M. no solo describe lo que sucede, sino que **dirige una historia 
 """
 
 # ================================================================
-# 🧠 FUNCIÓN: construir contexto con memoria corta
+# 🧠 MEMORIA CORTA
 # ================================================================
 def build_context_with_memory(context: dict | None = None, memory_limit: int = 3) -> str:
-    """Crea un texto contextual con los últimos eventos (memoria corta)."""
+    """Construye texto contextual con las últimas acciones."""
     memory_text = ""
     try:
         state = storage.read_json("game_state.json")
@@ -71,8 +72,23 @@ def build_context_with_memory(context: dict | None = None, memory_limit: int = 3
             f"Escena actual: {context.get('scene', 'desconocida')}\n"
             f"Descripción: {context.get('description', 'sin detalles')}\n"
         )
-
     return scene_text + memory_text
+
+# ================================================================
+# 📊 REGISTRO DE TOKENS
+# ================================================================
+def log_usage(model: str, tokens: int):
+    """Guarda el conteo de tokens por modelo en /data/usage.json."""
+    data = storage.read_json(USAGE_FILE)
+    date_key = datetime.utcnow().strftime("%Y-%m")
+    if date_key not in data:
+        data[date_key] = {"total": 0, "models": {}}
+
+    month_data = data[date_key]
+    month_data["total"] += tokens
+    month_data["models"][model] = month_data["models"].get(model, 0) + tokens
+
+    storage.write_json(USAGE_FILE, data)
 
 # ================================================================
 # 🎮 FUNCIÓN PRINCIPAL
@@ -81,6 +97,7 @@ async def interpret_action(player: str, action: str, mode: str, context: dict | 
     """
     Envía la acción o diálogo del jugador a GPT y devuelve la respuesta narrativa.
     Usa GPT-4o-mini por defecto y GPT-5 como fallback o para escenas clave.
+    Registra tokens usados por cada modelo.
     """
     memory_context = build_context_with_memory(context)
 
@@ -94,10 +111,10 @@ Acción: {action}
 Responde narrativamente como Dungeon Master, siguiendo las instrucciones del sistema.
 """
 
-    # Determinar si la escena amerita el modelo grande
+    # Determinar modelo adecuado
     model = PRIMARY_MODEL
     if mode == "dialogue" or any(x in action.lower() for x in ["hablo", "negocio", "discuto", "converso", "pregunto"]):
-        model = FALLBACK_MODEL  # usar modelo más expresivo
+        model = FALLBACK_MODEL
 
     try:
         response = client.chat.completions.create(
@@ -109,10 +126,17 @@ Responde narrativamente como Dungeon Master, siguiendo las instrucciones del sis
             temperature=0.85,
             max_completion_tokens=400,
         )
+
+        # Registrar tokens
+        usage = getattr(response, "usage", None)
+        if usage:
+            total = getattr(usage, "total_tokens", 0)
+            log_usage(model, total)
+
         return response.choices[0].message.content.strip()
 
     except Exception as e:
-        # Intentar automáticamente con el modelo de respaldo si falla el principal
+        # Fallback automático
         if model != FALLBACK_MODEL:
             try:
                 response = client.chat.completions.create(
@@ -124,7 +148,15 @@ Responde narrativamente como Dungeon Master, siguiendo las instrucciones del sis
                     temperature=0.85,
                     max_completion_tokens=400,
                 )
+
+                usage = getattr(response, "usage", None)
+                if usage:
+                    total = getattr(usage, "total_tokens", 0)
+                    log_usage(FALLBACK_MODEL, total)
+
                 return response.choices[0].message.content.strip()
+
             except Exception as e2:
                 return f"S.A.M. hace una pausa incómoda... (Error crítico del narrador: {e2})"
+
         return f"S.A.M. se queda pensativo... (Error: {e})"
