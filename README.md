@@ -28,8 +28,3 @@ gestionando las partidas, los jugadores, los encuentros y el progreso narrativo.
 
 ---
 
-## 🧩 Variables de entorno (.env)
-
-```bash
-SRD_SERVICE_URL=https://sam-srdservice.onrender.com
-HTTP_TIMEOUT=30
